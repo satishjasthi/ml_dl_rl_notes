@@ -103,6 +103,319 @@ The initial goal is to understand attention before implementing it. The current 
 **Q:** Set up the Attention Is All You Need study workspace with goals to understand intuition, implement a prototype, and prepare for an interview.
 **A:** Confirmed the active paper and notes path. Created the paper workspace and recorded the source, metadata, independent goal statuses, and beginner-friendly intuition lesson. The first explanation frames attention as content-dependent information routing, introduces queries, keys, values, self-attention, multi-head attention, positional encoding, and decoder masking, and distinguishes paper claims from interpretation. No prototype was created because implementation has not yet been explicitly requested.
 
-## Interaction 2 — Commit and push paper notes
-**Q:** Commit and push the Attention Is All You Need workspace changes to the remote repository.
-**A:** Inspected the active notes and Git state. The repository is on `main`, tracking `origin/main`; the focused changes are the new Transformer paper workspace and linked knowledge indexes. The requested changes will be committed and pushed to `origin/main`.
+## Attention deep dive — intuition, math, and a small example
+
+### 1. The central idea
+
+Attention is a learned information-retrieval operation. For each token, the model asks:
+
+1. **What am I looking for?** — the query.
+2. **Which other tokens match that need?** — compare the query with keys.
+3. **What information should I retrieve from those tokens?** — combine their values.
+
+The important point is that attention weights are **query-dependent**. There is not one permanent importance score for each word. The same word can be highly relevant to one token and irrelevant to another.
+
+### 2. From token representations to queries, keys, and values
+
+Let a sequence contain $n$ tokens, with each token represented using a $d_{\text{model}}$-dimensional vector. Stack the token vectors into:
+
+$$
+X \in \mathbb{R}^{n \times d_{\text{model}}}
+$$
+
+The model learns three projection matrices:
+
+$$
+W^Q \in \mathbb{R}^{d_{\text{model}} \times d_k},
+\qquad
+W^K \in \mathbb{R}^{d_{\text{model}} \times d_k},
+\qquad
+W^V \in \mathbb{R}^{d_{\text{model}} \times d_v}
+$$
+
+It projects the same input sequence into three roles:
+
+$$
+Q = XW^Q,
+\qquad
+K = XW^K,
+\qquad
+V = XW^V
+$$
+
+Therefore:
+
+$$
+Q,K \in \mathbb{R}^{n \times d_k},
+\qquad
+V \in \mathbb{R}^{n \times d_v}
+$$
+
+The token itself does not permanently contain a query, key, or value. These are learned, context-processing views created by the projection matrices. This is the scaled dot-product attention construction in paper Section 3.2.1.
+
+### 3. Computing relevance scores
+
+For token $i$ and candidate token $j$, the raw compatibility score is the dot product:
+
+$$
+s_{ij} = q_i k_j^{\mathsf{T}}
+$$
+
+A large positive score means the query and key point in similar directions in the learned feature space. A small or negative score means they are less compatible.
+
+Computing all pairwise scores at once gives:
+
+$$
+S = QK^{\mathsf{T}}
+$$
+
+The shapes make the operation clear:
+
+$$
+(n \times d_k)(d_k \times n) = n \times n
+$$
+
+There is one score for every query position and every candidate key position. Row $i$ describes how token $i$ relates to all tokens.
+
+### 4. Why divide by $\sqrt{d_k}$?
+
+The paper scales the scores before applying softmax:
+
+$$
+Z = \frac{QK^{\mathsf{T}}}{\sqrt{d_k}}
+$$
+
+If the components of $q_i$ and $k_j$ are independent, zero-mean, and have variance approximately $1$, the dot product is a sum of $d_k$ products. Its variance grows approximately with $d_k$, so its typical magnitude grows with $\sqrt{d_k}$.
+
+Without scaling, larger key dimensions can produce large logits. Softmax then becomes nearly one-hot: one candidate gets almost all the weight, the others get almost none, and gradients become less useful. Dividing by $\sqrt{d_k}$ keeps the scores in a more stable range. This is the paper's motivation in Section 3.2.1.
+
+### 5. Turning scores into attention weights
+
+Softmax is applied independently across each row, meaning each query distributes a total probability mass of $1$ over candidate tokens:
+
+$$
+\alpha_{ij}
+= \frac{\exp\left(s_{ij}/\sqrt{d_k}\right)}
+{\sum_{r=1}^{n}\exp\left(s_{ir}/\sqrt{d_k}\right)}
+$$
+
+For every query position $i$:
+
+$$
+\sum_{j=1}^{n}\alpha_{ij}=1
+\qquad\text{and}\qquad
+\alpha_{ij}\ge 0
+$$
+
+Stacking all weights into a matrix gives:
+
+$$
+A = \operatorname{softmax}_{\text{row}}\left(\frac{QK^{\mathsf{T}}}{\sqrt{d_k}}\right)
+$$
+
+The weights answer **how much each query listens to each candidate**. They are not the final output yet.
+
+### 6. Retrieving and mixing values
+
+The final attention output is:
+
+$$
+O = AV
+$$
+
+The shape is:
+
+$$
+(n \times n)(n \times d_v)=n \times d_v
+$$
+
+For a single query position $i$, this is:
+
+$$
+o_i = \sum_{j=1}^{n}\alpha_{ij}v_j
+$$
+
+So each output is a weighted average of the value vectors. The keys decide relevance; the values supply the retrieved content.
+
+Putting all steps together gives the paper's main equation:
+
+$$
+\operatorname{Attention}(Q,K,V)
+= \operatorname{softmax}\left(\frac{QK^{\mathsf{T}}}{\sqrt{d_k}}\right)V
+$$
+
+### 7. Numerical example with two tokens
+
+To focus on the mechanics, assume the projections have already happened. Consider two query positions and two candidate values:
+
+$$
+Q =
+\begin{bmatrix}
+1 & 0\\
+0 & 1
+\end{bmatrix},
+\qquad
+K =
+\begin{bmatrix}
+1 & 0\\
+0 & 1
+\end{bmatrix},
+\qquad
+V =
+\begin{bmatrix}
+10 & 0\\
+0 & 20
+\end{bmatrix}
+$$
+
+Here $d_k=2$, so $\sqrt{d_k}=\sqrt{2}\approx 1.414$.
+
+#### Step 1: raw query-key scores
+
+$$
+QK^{\mathsf{T}}
+=
+\begin{bmatrix}
+1 & 0\\
+0 & 1
+\end{bmatrix}
+\begin{bmatrix}
+1 & 0\\
+0 & 1
+\end{bmatrix}^{\mathsf{T}}
+=
+\begin{bmatrix}
+1 & 0\\
+0 & 1
+\end{bmatrix}
+$$
+
+The first query matches key 1 with score $1$ and key 2 with score $0$. The second query has the opposite preference.
+
+#### Step 2: scale the scores
+
+$$
+Z = \frac{QK^{\mathsf{T}}}{\sqrt{2}}
+\approx
+\begin{bmatrix}
+0.707 & 0\\
+0 & 0.707
+\end{bmatrix}
+$$
+
+#### Step 3: apply row-wise softmax
+
+For the first row:
+
+$$
+\operatorname{softmax}([0.707,0])
+= \left[
+\frac{\exp(0.707)}{\exp(0.707)+\exp(0)},
+\frac{\exp(0)}{\exp(0.707)+\exp(0)}
+\right]
+\approx [0.670,0.330]
+$$
+
+For the second row, the weights are reversed:
+
+$$
+A \approx
+\begin{bmatrix}
+0.670 & 0.330\\
+0.330 & 0.670
+\end{bmatrix}
+$$
+
+#### Step 4: mix the value vectors
+
+$$
+O=AV
+\approx
+\begin{bmatrix}
+0.670 & 0.330\\
+0.330 & 0.670
+\end{bmatrix}
+\begin{bmatrix}
+10 & 0\\
+0 & 20
+\end{bmatrix}
+=
+\begin{bmatrix}
+6.70 & 6.60\\
+3.30 & 13.40
+\end{bmatrix}
+$$
+
+Interpretation:
+
+- Query 1 mostly listens to value 1, so its output is closer to $[10,0]$.
+- Query 2 mostly listens to value 2, so its output is closer to $[0,20]$.
+- Neither output simply copies one value because softmax gives both candidates some weight.
+
+This example is intentionally small and uses already-projected vectors. In a real Transformer, $Q$, $K$, and $V$ are learned projections of token embeddings and the model learns the projections during training.
+
+### 8. Self-attention, cross-attention, and masking
+
+In encoder self-attention, all three inputs come from the same sequence:
+
+$$
+Q=XW^Q,\qquad K=XW^K,\qquad V=XW^V
+$$
+
+In decoder self-attention, the same is true, but a causal mask prevents position $i$ from using future positions $j>i$. A mask can be represented as:
+
+$$
+M_{ij}=
+\begin{cases}
+0, & j\le i\\
+-\infty, & j>i
+\end{cases}
+$$
+
+The masked operation is:
+
+$$
+A=\operatorname{softmax}_{\text{row}}
+\left(\frac{QK^{\mathsf{T}}}{\sqrt{d_k}}+M\right)
+$$
+
+Adding $-\infty$ makes the corresponding softmax probability zero. Thus, all target positions can be computed in parallel during training, while each position still behaves as if it only knew the preceding target tokens.
+
+In encoder-decoder attention, queries come from the decoder and keys and values come from the encoder output $H$:
+
+$$
+Q=YW^Q,\qquad K=HW^K,\qquad V=HW^V
+$$
+
+This lets each generated target token retrieve relevant information from the encoded source sentence.
+
+### 9. Multi-head attention
+
+Instead of using one attention operation, the Transformer uses $h$ heads. Each head has its own projections:
+
+$$
+\operatorname{head}_r
+=\operatorname{Attention}
+\left(XW_r^Q,XW_r^K,XW_r^V\right)
+$$
+
+The heads are concatenated and projected:
+
+$$
+\operatorname{MultiHead}(X)
+=\operatorname{Concat}(\operatorname{head}_1,\ldots,\operatorname{head}_h)W^O
+$$
+
+Different heads can learn different relationships, but the interpretation that one head always corresponds to one human concept is only a possible diagnostic pattern, not a guaranteed property.
+
+### 10. What attention does and does not do
+
+- Attention does **not** create information from nowhere; it routes and mixes value representations after learned projections.
+- Attention weights are not fixed word importance scores; they depend on the query, input, layer, head, and masking.
+- Attention alone does not encode order; the Transformer adds positional encodings as described in Section 3.5.
+- Self-attention gives direct pairwise interaction between positions, but its score matrix has $n^2$ entries, so computation and memory grow quadratically with sequence length.
+- The Transformer gains training parallelism because all query-key-value operations for a sequence can be computed as matrix operations, rather than waiting for recurrent time steps.
+
+## Interaction 3 — Attention intuition, derivation, and numerical example
+**Q:** Explain attention in detail with intuition, a small example, and the complete mathematics.
+**A:** Added a source-aware attention deep dive covering query-key-value projections, score and weight computation, $\sqrt{d_k}$ scaling, value aggregation, tensor shapes, a two-token numerical example, causal masking, cross-attention, multi-head attention, and important qualifications. The active concepts remain unchecked because the user has not explicitly confirmed mastery.

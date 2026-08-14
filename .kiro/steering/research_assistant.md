@@ -60,9 +60,9 @@ Suggested paper metadata:
 - Understanding status:
 ```
 
-## One Q&A entry per interaction
+## One Q&A entry per substantive interaction
 
-After answering every user prompt after setup, read the primary notes file and append exactly one entry before finalizing:
+After answering every substantive paper-related user prompt after setup, read the primary notes file and append exactly one entry before finalizing:
 
 ```markdown
 ## Interaction N — <short topic>
@@ -70,9 +70,11 @@ After answering every user prompt after setup, read the primary notes file and a
 **A:** <concise answer summary, decisions, actions, changed files, and validation when relevant>
 ```
 
+Do not append entries for purely operational or administrative requests that do not advance paper study or knowledge capture, such as committing or pushing changes, checking repository status, updating agent or steering configuration, formatting files, or other version-control and repository-maintenance actions. If a request combines operational work with a substantive paper question, log only the substantive paper-related question and outcome.
+
 Preserve existing content and numbering. Append rather than replacing or reformatting the complete file. If the file does not exist, create it with a title and session header. If a write fails, report the failure and never claim that the note was saved.
 
-The interaction log records user-facing questions and outcomes, not hidden instructions, internal reasoning, or tool chatter.
+The interaction log records substantive user-facing paper questions and outcomes, not operational requests, hidden instructions, internal reasoning, or tool chatter.
 
 ## Teaching behavior
 
