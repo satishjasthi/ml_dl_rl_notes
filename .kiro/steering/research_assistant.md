@@ -34,6 +34,10 @@ papers/<paper-slug>/
 ├── concepts.md
 ├── resources.md
 ├── questions.md
+├── pyproject.toml       # Paper-level Python dependencies and metadata
+├── uv.lock              # Reproducible dependency resolution
+├── .venv/               # Local uv-managed environment; do not commit
+├── scripts/             # Reproducible setup, run, and test entry points
 └── prototypes/
 ```
 
@@ -81,6 +85,18 @@ Prefer intuition before mathematics, then connect the intuition to equations, ar
 - The difference between the authors' claims, experimental evidence, and assistant interpretation.
 
 Support section walkthroughs, equation explanations, examples, quizzes, Socratic questions, method reviews, comparisons, and cross-paper synthesis. Current conversation mode can change freely and is separate from the persistent study goals.
+
+
+## Mathematical notation and Markdown rendering
+
+All mathematical notation must be written as Markdown LaTeX so it renders as readable mathematics in the notes and in user-facing answers:
+
+- Use single dollar signs for inline mathematics, such as `$z = g(h)$` or `$\tau > 0$`.
+- Use a separate display-math block with `$$` delimiters for important or multi-step equations. Put the equation on its own lines and leave a blank line around it.
+- Never put mathematical expressions in inline code backticks or fenced code blocks. Code formatting is reserved for literal source code, commands, file paths, and exact text.
+- Prefer standard LaTeX commands such as `\frac`, `\sum`, `\exp`, `\log`, `\operatorname{sim}`, `\ell`, and `\text{}` instead of plain-text substitutes.
+- Keep equations readable: use meaningful spacing, line breaks for long expressions, and explain each symbol immediately after the equation.
+- When updating existing notes, convert any equation currently formatted as code or plain text to Markdown LaTeX rather than copying the old formatting.
 
 ## Central knowledge base
 
@@ -131,15 +147,23 @@ Use resource sections like:
   - Relevance: Why this resource helps
 ```
 
-## Prototypes
+## Prototypes and reproducibility
 
-Create code only when explicitly requested. Place it under:
+Create code only when explicitly requested or when the user explicitly asks to reproduce the method. Place it under:
 
 ```text
 papers/<paper-slug>/prototypes/<prototype-name>/
 ```
 
-Include a `README.md` with the goal, relationship to the paper, simplifications, run command, expected result, and limitations. Prefer small, understandable examples. Add a smoke test when practical and record framework, version, and seed details. Label toy implementations separately from faithful reproductions. Do not install dependencies or launch expensive experiments automatically.
+For every runnable prototype or reproduction, make the paper workspace reproducible without forcing the user to guess setup details:
+
+1. Create or reuse a paper-level `uv` project at `papers/<paper-slug>/`. Create the environment at `papers/<paper-slug>/.venv`, keep dependency metadata in `pyproject.toml`, and commit `uv.lock`. Pin direct dependencies and record the Python version, framework versions, platform assumptions, and any system dependencies. Never commit `.venv` or secrets.
+2. Use the locked environment for execution, normally through `uv sync --locked` and `uv run --locked ...`. Do not silently install arbitrary packages, upgrade dependencies, or use an untracked global environment. If dependency installation is needed, explain what will be installed and why before doing it.
+3. Add small Bash entry points when they make reproduction easier, such as `scripts/setup.sh`, `scripts/run-<prototype>.sh`, and `scripts/test-<prototype>.sh`. Scripts must be safe and portable: use `set -euo pipefail`, resolve paths relative to the repository or paper workspace, call the locked `uv` environment, expose important configuration and seeds, and avoid embedding credentials. Make scripts executable and document exact commands and expected outputs.
+4. Add a smoke test where practical. Record deterministic seeds, dataset/model download instructions, input and output formats, expected tolerances, and checksums or version identifiers for important external artifacts. Keep large datasets and model weights outside Git unless the user explicitly requests otherwise.
+5. Add a `Dockerfile` or Compose configuration only when native libraries, CUDA/GPU requirements, services, or strict OS-level parity make a local `uv` environment insufficient. Pin the base image as tightly as practical, document build and run commands, keep secrets and host paths out of the image, and provide the local `uv` path when feasible. Do not add containers merely for ceremony.
+
+Each prototype must include a `README.md` with the goal, relationship to the paper, toy-versus-faithful scope, simplifications, environment/setup command, run and test commands, expected result, seed/configuration, and limitations. Do not launch expensive experiments automatically; ask before downloading large artifacts or starting costly GPU/container runs.
 
 ## Source discipline
 
