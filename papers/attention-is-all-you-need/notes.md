@@ -48,7 +48,7 @@ A query is compared with all keys. The resulting scores are normalized into weig
 
 $$
 \operatorname{Attention}(Q,K,V)
-= \operatorname{softmax}\left(\frac{QK^{\mathsf{T}}}{\sqrt{d_k}}\right)V
+= \operatorname{softmax}\left(\frac{QK^{\top}}{\sqrt{d_k}}\right)V
 $$
 
 Here, $Q$, $K$, and $V$ are matrices of queries, keys, and values; $d_k$ is the key-vector dimension; and the softmax turns compatibility scores into weights. The division by $\sqrt{d_k}$ prevents large dot products from making the softmax too sharp too early (paper Section 3.2.1).
@@ -158,7 +158,7 @@ The token itself does not permanently contain a query, key, or value. These are 
 For token $i$ and candidate token $j$, the raw compatibility score is the dot product:
 
 $$
-s_{ij} = q_i k_j^{\mathsf{T}}
+s_{ij} = q_i k_j^{\top}
 $$
 
 A large positive score means the query and key point in similar directions in the learned feature space. A small or negative score means they are less compatible.
@@ -166,7 +166,7 @@ A large positive score means the query and key point in similar directions in th
 Computing all pairwise scores at once gives:
 
 $$
-S = QK^{\mathsf{T}}
+S = QK^{\top}
 $$
 
 The shapes make the operation clear:
@@ -182,7 +182,7 @@ There is one score for every query position and every candidate key position. Ro
 The paper scales the scores before applying softmax:
 
 $$
-Z = \frac{QK^{\mathsf{T}}}{\sqrt{d_k}}
+Z = \frac{QK^{\top}}{\sqrt{d_k}}
 $$
 
 If the components of $q_i$ and $k_j$ are independent, zero-mean, and have variance approximately $1$, the dot product is a sum of $d_k$ products. Its variance grows approximately with $d_k$, so its typical magnitude grows with $\sqrt{d_k}$.
@@ -210,7 +210,7 @@ $$
 Stacking all weights into a matrix gives:
 
 $$
-A = \operatorname{softmax}_{\text{row}}\left(\frac{QK^{\mathsf{T}}}{\sqrt{d_k}}\right)
+A = \operatorname{softmax}_{\mathrm{row}}\left(\frac{QK^{\top}}{\sqrt{d_k}}\right)
 $$
 
 The weights answer **how much each query listens to each candidate**. They are not the final output yet.
@@ -241,7 +241,7 @@ Putting all steps together gives the paper's main equation:
 
 $$
 \operatorname{Attention}(Q,K,V)
-= \operatorname{softmax}\left(\frac{QK^{\mathsf{T}}}{\sqrt{d_k}}\right)V
+= \operatorname{softmax}\left(\frac{QK^{\top}}{\sqrt{d_k}}\right)V
 $$
 
 ### 7. Numerical example with two tokens
@@ -273,7 +273,7 @@ Here $d_k=2$, so $\sqrt{d_k}=\sqrt{2}\approx 1.414$.
 #### Step 1: raw query-key scores
 
 $$
-QK^{\mathsf{T}}
+QK^{\top}
 =
 \begin{bmatrix}
 1 & 0\\
@@ -282,7 +282,7 @@ QK^{\mathsf{T}}
 \begin{bmatrix}
 1 & 0\\
 0 & 1
-\end{bmatrix}^{\mathsf{T}}
+\end{bmatrix}^{\top}
 =
 \begin{bmatrix}
 1 & 0\\
@@ -295,7 +295,7 @@ The first query matches key 1 with score $1$ and key 2 with score $0$. The secon
 #### Step 2: scale the scores
 
 $$
-Z = \frac{QK^{\mathsf{T}}}{\sqrt{2}}
+Z = \frac{QK^{\top}}{\sqrt{2}}
 \approx
 \begin{bmatrix}
 0.707 & 0\\
@@ -375,8 +375,8 @@ $$
 The masked operation is:
 
 $$
-A=\operatorname{softmax}_{\text{row}}
-\left(\frac{QK^{\mathsf{T}}}{\sqrt{d_k}}+M\right)
+A=\operatorname{softmax}_{\mathrm{row}}
+\left(\frac{QK^{\top}}{\sqrt{d_k}}+M\right)
 $$
 
 Adding $-\infty$ makes the corresponding softmax probability zero. Thus, all target positions can be computed in parallel during training, while each position still behaves as if it only knew the preceding target tokens.
@@ -419,3 +419,8 @@ Different heads can learn different relationships, but the interpretation that o
 ## Interaction 3 — Attention intuition, derivation, and numerical example
 **Q:** Explain attention in detail with intuition, a small example, and the complete mathematics.
 **A:** Added a source-aware attention deep dive covering query-key-value projections, score and weight computation, $\sqrt{d_k}$ scaling, value aggregation, tensor shapes, a two-token numerical example, causal masking, cross-attention, multi-head attention, and important qualifications. The active concepts remain unchecked because the user has not explicitly confirmed mastery.
+
+
+## Interaction 4 — LaTeX rendering cleanup
+**Q:** Fix the LaTeX equation rendering issues in the Attention Is All You Need notes and push the changes.
+**A:** Normalized transpose notation and row-wise softmax labels for broader Markdown math-renderer compatibility. The changes were made only in the authoritative notes file; validation and remote push follow.
