@@ -34,6 +34,10 @@ papers/<paper-slug>/
 ├── concepts.md       # Paper-specific concept checklist
 ├── resources.md      # Primary, related, prerequisite, and follow-up links
 ├── questions.md      # Unresolved questions
+├── pyproject.toml    # Paper-level Python dependencies and metadata
+├── uv.lock           # Reproducible dependency resolution
+├── .venv/            # Local uv-managed environment; do not commit
+├── scripts/          # Reproducible setup, run, and test entry points
 └── prototypes/       # Small implementations requested by the user
 ```
 
@@ -80,7 +84,7 @@ Each item below is a short usage pointer; the detailed behavior is defined in [r
 - **Cross-paper search:** Use `/find <term>` or `/concept <name>` to search paper notes and central indexes; see [central knowledge base](.kiro/steering/research_assistant.md#central-knowledge-base).
 - **Comparisons and synthesis:** Use `/compare <paper-or-method> <paper-or-method>` or `/synthesize <topic>` to connect ideas across papers; see [central knowledge base](.kiro/steering/research_assistant.md#central-knowledge-base).
 - **Claim tracing:** Use `/trace <claim>` to locate source notes and supporting evidence; see [source discipline](.kiro/steering/research_assistant.md#source-discipline).
-- **Prototypes:** Explicitly request a small implementation; prototypes go under the active paper and include scope, run instructions, expected results, and limitations; see [prototypes](.kiro/steering/research_assistant.md#prototypes).
+- **Reproducible prototypes:** Explicitly request a small implementation or reproduction; the assistant creates or reuses a paper-level `uv` environment, lockfile, scripts, and a smoke test where practical, and adds a container only when native/system or hardware parity requires it; see [prototypes and reproducibility](.kiro/steering/research_assistant.md#prototypes-and-reproducibility).
 - **Knowledge-base status:** Use `/knowledge-status` to review papers, concepts, questions, resources, and prototypes in progress.
 
 ## Local configuration
