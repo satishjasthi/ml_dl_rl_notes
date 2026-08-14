@@ -28,3 +28,8 @@
   - Topics: self-supervised learning, self-distillation, Vision Transformer, masked image modeling, foundation models, visual representation learning
   - Source: https://arxiv.org/abs/2304.07193
   - Comparisons: [DINOv1 notes](../papers/dino-v1/notes.md), [MAE notes](../papers/masked_auto_encoders/notes.md), [SimCLRv2 notes](../papers/simCLRv2/notes.md)
+
+- [Attention Is All You Need](../papers/attention-is-all-you-need/notes.md)
+  - Authors: Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser, Illia Polosukhin
+  - Topics: attention, Transformer, sequence transduction, neural machine translation
+  - Source: https://arxiv.org/abs/1706.03762

@@ -13,3 +13,5 @@
 
 - **DINOv2 self-supervised feature learning** — scale DINO-style EMA-teacher distillation with curated LVD-142M data, iBOT-style masked patch prediction, KoLeo regularization, and large Vision Transformers. Source: [DINOv2 notes](../papers/dino_v2/notes.md).
 - **Global-plus-patch distillation** — use global crop-level targets and masked patch-level targets to preserve both semantic and spatial information. Source: [DINOv2 notes](../papers/dino_v2/notes.md).
+
+- **Transformer encoder-decoder** — sequence-transduction architecture based on self-attention, encoder-decoder attention, positional encodings, feed-forward layers, residual connections, and normalization, without recurrence or convolution. Source: [Attention Is All You Need notes](../papers/attention-is-all-you-need/notes.md).

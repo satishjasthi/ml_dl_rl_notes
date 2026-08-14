@@ -23,3 +23,8 @@
 - **KoLeo feature regularization** — encourage normalized features to remain spread through nearest-neighbor distance regularization. Source: [DINOv2 notes](../papers/dino_v2/notes.md).
 - **Curated visual pretraining data** — DINOv2 treats data diversity and curation as part of general-purpose feature learning. Source: [DINOv2 notes](../papers/dino_v2/notes.md).
 - **DINOv1-to-DINOv2 scaling** — DINOv2 retains the EMA teacher intuition while extending the objective, data, model, and evaluation recipe. Sources: [DINOv1 notes](../papers/dino-v1/notes.md) and [DINOv2 notes](../papers/dino_v2/notes.md).
+
+- **Query-key-value attention** — route information by comparing a query with candidate keys and mixing the corresponding values. Source: [Attention Is All You Need notes](../papers/attention-is-all-you-need/notes.md).
+- **Self-attention** — let each token build a context-aware representation by attending to positions in the same sequence. Source: [Attention Is All You Need notes](../papers/attention-is-all-you-need/notes.md).
+- **Positional encoding** — add sequence-order information because attention alone does not inherently represent token positions. Source: [Attention Is All You Need notes](../papers/attention-is-all-you-need/notes.md).
+- **Causal decoder masking** — prevent a target position from using future target tokens during Transformer training. Source: [Attention Is All You Need notes](../papers/attention-is-all-you-need/notes.md).
