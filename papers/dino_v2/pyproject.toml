@@ -1,0 +1,11 @@
+[project]
+name = "dino-v2-paper-prototype"
+version = "0.1.0"
+description = "Educational DINOv2 prototype for studying arXiv:2304.07193"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "torch==2.7.1",
+]
+
+[tool.uv]
+package = false

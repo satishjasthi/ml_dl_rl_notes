@@ -1,5 +1,5 @@
 # Prototypes
 
-No prototype has been created yet. Implementation is an explicit study goal and can be added under this directory when requested.
+- [Five-image batch walkthrough](five_image_batch/README.md) — educational one-batch SimCLR forward pass with public images, augmentations, ResNet-18, projection head, and NT-Xent loss.
 
-See [../notes.md](../notes.md) for the paper summary and current study status.
+See [../notes.md](../notes.md) for the paper summary and study log.

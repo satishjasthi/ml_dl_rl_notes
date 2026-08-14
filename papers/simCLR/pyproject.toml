@@ -1,0 +1,13 @@
+[project]
+name = "simclr-paper-prototype"
+version = "0.1.0"
+description = "Educational SimCLR prototype for studying arXiv:2002.05709"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "pillow==11.3.0",
+    "torch==2.7.1",
+    "torchvision==0.22.1",
+]
+
+[tool.uv]
+package = false

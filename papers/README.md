@@ -8,6 +8,10 @@ papers/<paper-slug>/
 ├── concepts.md
 ├── resources.md
 ├── questions.md
+├── pyproject.toml       # Paper-level Python dependencies and metadata
+├── uv.lock              # Reproducible dependency resolution
+├── .venv/               # Local uv-managed environment; do not commit
+├── scripts/             # Reproducible setup, run, and test entry points
 └── prototypes/
 ```
 

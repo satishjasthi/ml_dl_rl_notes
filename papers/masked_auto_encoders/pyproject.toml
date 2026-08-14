@@ -1,0 +1,11 @@
+[project]
+name = "masked-auto-encoders-paper-prototype"
+version = "0.1.0"
+description = "Educational masked autoencoder prototype for studying arXiv:2111.06377"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "torch==2.7.1",
+]
+
+[tool.uv]
+package = false
