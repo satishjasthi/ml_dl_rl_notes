@@ -103,324 +103,417 @@ The initial goal is to understand attention before implementing it. The current 
 **Q:** Set up the Attention Is All You Need study workspace with goals to understand intuition, implement a prototype, and prepare for an interview.
 **A:** Confirmed the active paper and notes path. Created the paper workspace and recorded the source, metadata, independent goal statuses, and beginner-friendly intuition lesson. The first explanation frames attention as content-dependent information routing, introduces queries, keys, values, self-attention, multi-head attention, positional encoding, and decoder masking, and distinguishes paper claims from interpretation. No prototype was created because implementation has not yet been explicitly requested.
 
-## Attention deep dive — intuition, math, and a small example
 
-### 1. The central idea
+## Attention from Scratch: A Bottom-Up Walkthrough
 
-Attention is a learned information-retrieval operation. For each token, the model asks:
+This handout builds one attention head from the smallest useful example.
 
-1. **What am I looking for?** — the query.
-2. **Which other tokens match that need?** — compare the query with keys.
-3. **What information should I retrieve from those tokens?** — combine their values.
+We will use the sentence:
 
-The important point is that attention weights are **query-dependent**. There is not one permanent importance score for each word. The same word can be highly relevant to one token and irrelevant to another.
+> **The cat sat.**
 
-### 2. From token representations to queries, keys, and values
+We will focus on the token **sat** and ask:
 
-Let a sequence contain $n$ tokens, with each token represented using a $d_{\text{model}}$-dimensional vector. Stack the token vectors into:
+> Which other tokens should `sat` use to understand its context?
+
+## The complete attention pipeline
+
+1. Convert tokens into vectors.
+2. Create queries, keys, and values.
+3. Compare one query with every key.
+4. Scale the scores by `sqrt(d_k)`.
+5. Apply softmax to get attention weights.
+6. Use the weights to combine the values.
+7. Produce a context-aware representation.
+
+## 1. Tokens become vectors
+
+After tokenization, the sentence is represented as:
+
+```text
+[The, cat, sat]
+```
+
+Each token is converted into a vector:
 
 $$
-X \in \mathbb{R}^{n \times d_{\text{model}}}
+x_{\text{The}}, \qquad x_{\text{cat}}, \qquad x_{\text{sat}}
 $$
 
-The model learns three projection matrices:
+In this handout, keep two different dimensions separate:
+
+- **Sequence length, $L$:** how many token positions are in the current input. For `The cat sat`, $L=3$.
+- **Key dimension, $d_k$:** how many numbers are in one key vector for one attention head. In this toy example, we choose $d_k=2$, so every key has two components.
+
+These are independent. A sequence can contain 3, 100, or 4,096 tokens while the same model head still uses the same $d_k$. Conversely, changing the model architecture can change $d_k$ without changing the number of input tokens.
+
+For one attention head, the shapes are:
 
 $$
-W^Q \in \mathbb{R}^{d_{\text{model}} \times d_k},
+Q \in \mathbb{R}^{L \times d_k},
 \qquad
-W^K \in \mathbb{R}^{d_{\text{model}} \times d_k},
+K \in \mathbb{R}^{L \times d_k},
 \qquad
-W^V \in \mathbb{R}^{d_{\text{model}} \times d_v}
+V \in \mathbb{R}^{L \times d_v}
 $$
 
-It projects the same input sequence into three roles:
+The score matrix has shape:
 
 $$
-Q = XW^Q,
-\qquad
-K = XW^K,
-\qquad
-V = XW^V
+QK^\top:
+(L \times d_k)(d_k \times L)=L \times L
+$$
+
+So:
+
+- $L$ determines **how many rows and columns** are in the attention-score matrix.
+- $d_k$ determines the **length of the vectors being dotted together** and therefore the scale factor $\sqrt{d_k}$.
+
+### How does a real model choose $d_k$?
+
+For ordinary multi-head attention, the model configuration usually provides:
+
+- $d_{\text{model}}$: the hidden/embedding width
+- $H$: the number of query attention heads
+
+When the hidden width is evenly divided across heads:
+
+$$
+ d_k = \text{head\_dim} = \frac{d_{\text{model}}}{H}
+$$
+
+For example:
+
+| Model configuration | Calculation | Per-head $d_k$ |
+|---|---:|---:|
+| $d_{\text{model}}=768$, $H=12$ | $768/12$ | $64$ |
+| $d_{\text{model}}=4096$, $H=32$ | $4096/32$ | $128$ |
+
+In code, prefer an explicit `head_dim` or `hidden_size / num_attention_heads` from the model configuration. Do **not** calculate $d_k$ from the number of input tokens.
+
+Grouped-query attention may use fewer key/value heads than query heads, but the key vector width is still typically the configured `head_dim`. Some newer architectures use special attention variants, so their model configuration and implementation are the final authority.
+
+For the toy sentence, the facts are therefore:
+
+```text
+number of tokens (sequence length L) = 3
+key dimension per head (d_k)        = 2  ← chosen for the example
+```
+
+## 2. Every token gets three views
+
+For every token representation $x_i$, the model creates three vectors:
+
+$$
+q_i = x_i W^Q
+$$
+
+$$
+k_i = x_i W^K
+$$
+
+$$
+v_i = x_i W^V
+$$
+
+These vectors have different jobs:
+
+- **Query:** What is this token looking for?
+- **Key:** How can this token be found by other tokens?
+- **Value:** What information should this token provide if selected?
+
+### Library analogy
+
+- The **query** is a search request.
+- The **key** is the label or index of a book.
+- The **value** is the actual content inside the book.
+
+Queries and keys decide what matches. Values provide the information retrieved after matching.
+
+The matrices $W^Q$, $W^K$, and $W^V$ are learned during training. They create different roles from the same token representation.
+
+## 3. Focus on the query for `sat`
+
+Suppose the learned query for `sat` is:
+
+$$
+q_{\text{sat}} = [2, 1]
+$$
+
+Suppose the keys are:
+
+$$
+k_{\text{The}} = [0, 1]
+$$
+
+$$
+k_{\text{cat}} = [2, 1]
+$$
+
+$$
+k_{\text{sat}} = [1, 0]
+$$
+
+These numbers are illustrative. Real query and key vectors are learned floating-point values.
+
+The query for `sat` is compared with every key using a dot product.
+
+## 4. Calculate query-key compatibility scores
+
+For `The`:
+
+$$
+q_{\text{sat}} k_{\text{The}}^\top
+= [2,1][0,1]^\top
+= 2(0)+1(1)
+= 1
+$$
+
+For `cat`:
+
+$$
+q_{\text{sat}} k_{\text{cat}}^\top
+= [2,1][2,1]^\top
+= 2(2)+1(1)
+= 5
+$$
+
+For `sat` itself:
+
+$$
+q_{\text{sat}} k_{\text{sat}}^\top
+= [2,1][1,0]^\top
+= 2(1)+1(0)
+= 2
+$$
+
+The raw scores are therefore:
+
+$$
+[1, 5, 2]
+$$
+
+The largest score is for `cat`. In this toy example, the query for `sat` considers `cat` the most relevant token.
+
+The model does not receive a hard-coded grammar rule saying that `cat` is the subject of `sat`. During training, it learns projections that make useful relationships produce larger scores.
+
+## 5. Scale by `sqrt(d_k)`
+
+Here, each query and key has dimension $d_k=2$ because the toy vectors contain two numbers each. This is **not** because the sentence has three tokens; the sentence length is $L=3$, while $d_k$ is the width of each per-head query/key vector.
+
+Therefore:
+
+$$
+\sqrt{d_k} = \sqrt{2}
+$$
+
+The scaled scores are:
+
+$$
+\frac{[1,5,2]}{\sqrt{2}}
+\approx
+[0.707, 3.536, 1.414]
+$$
+
+Why scale? Dot products tend to become larger as the vector dimension $d_k$ grows. Very large scores make softmax extremely sharp and can make learning unstable. Dividing by $\sqrt{d_k}$ keeps the scores in a more manageable range.
+
+## 6. Softmax creates attention weights
+
+Apply softmax to the scaled scores:
+
+$$
+\operatorname{softmax}([0.707,3.536,1.414])
+\approx
+[0.05,0.85,0.10]
+$$
+
+The weights are:
+
+| Token | Attention weight |
+|---|---:|
+| `The` | $0.05$ |
+| `cat` | $0.85$ |
+| `sat` | $0.10$ |
+
+The weights sum to one:
+
+$$
+0.05+0.85+0.10=1
+$$
+
+So, while processing `sat`, the model attends approximately:
+
+- 5% to `The`
+- 85% to `cat`
+- 10% to `sat` itself
+
+These are not permanent importance scores. A different query, such as the query for `cat`, can produce a different distribution.
+
+## 7. Use the weights to retrieve values
+
+Suppose the value vectors are:
+
+$$
+v_{\text{The}} = [1,0]
+$$
+
+$$
+v_{\text{cat}} = [0,3]
+$$
+
+$$
+v_{\text{sat}} = [2,1]
+$$
+
+The output for `sat` is the weighted sum of these values:
+
+$$
+o_{\text{sat}}
+= 0.05v_{\text{The}}
++ 0.85v_{\text{cat}}
++ 0.10v_{\text{sat}}
+$$
+
+Substituting the values:
+
+$$
+o_{\text{sat}}
+= 0.05[1,0]
++ 0.85[0,3]
++ 0.10[2,1]
 $$
 
 Therefore:
 
 $$
-Q,K \in \mathbb{R}^{n \times d_k},
-\qquad
-V \in \mathbb{R}^{n \times d_v}
+o_{\text{sat}} = [0.25, 2.65]
 $$
 
-The token itself does not permanently contain a query, key, or value. These are learned, context-processing views created by the projection matrices. This is the scaled dot-product attention construction in paper Section 3.2.1.
+This is now a **context-enriched representation** of `sat`. It contains mostly information retrieved from `cat` because `cat` received the largest attention weight.
 
-### 3. Computing relevance scores
+The key distinction is:
 
-For token $i$ and candidate token $j$, the raw compatibility score is the dot product:
+- **Keys** help decide where to look.
+- **Values** provide the information retrieved from those locations.
 
-$$
-s_{ij} = q_i k_j^{\top}
-$$
+## 8. The complete matrix calculation
 
-A large positive score means the query and key point in similar directions in the learned feature space. A small or negative score means they are less compatible.
+The previous calculation focused on one query. In practice, the Transformer calculates attention for all tokens at once.
 
-Computing all pairwise scores at once gives:
-
-$$
-S = QK^{\top}
-$$
-
-The shapes make the operation clear:
-
-$$
-(n \times d_k)(d_k \times n) = n \times n
-$$
-
-There is one score for every query position and every candidate key position. Row $i$ describes how token $i$ relates to all tokens.
-
-### 4. Why divide by $\sqrt{d_k}$?
-
-The paper scales the scores before applying softmax:
-
-$$
-Z = \frac{QK^{\top}}{\sqrt{d_k}}
-$$
-
-If the components of $q_i$ and $k_j$ are independent, zero-mean, and have variance approximately $1$, the dot product is a sum of $d_k$ products. Its variance grows approximately with $d_k$, so its typical magnitude grows with $\sqrt{d_k}$.
-
-Without scaling, larger key dimensions can produce large logits. Softmax then becomes nearly one-hot: one candidate gets almost all the weight, the others get almost none, and gradients become less useful. Dividing by $\sqrt{d_k}$ keeps the scores in a more stable range. This is the paper's motivation in Section 3.2.1.
-
-### 5. Turning scores into attention weights
-
-Softmax is applied independently across each row, meaning each query distributes a total probability mass of $1$ over candidate tokens:
-
-$$
-\alpha_{ij}
-= \frac{\exp\left(s_{ij}/\sqrt{d_k}\right)}
-{\sum_{r=1}^{n}\exp\left(s_{ir}/\sqrt{d_k}\right)}
-$$
-
-For every query position $i$:
-
-$$
-\sum_{j=1}^{n}\alpha_{ij}=1
-\qquad\text{and}\qquad
-\alpha_{ij}\ge 0
-$$
-
-Stacking all weights into a matrix gives:
-
-$$
-A = \operatorname{softmax}_{\mathrm{row}}\left(\frac{QK^{\top}}{\sqrt{d_k}}\right)
-$$
-
-The weights answer **how much each query listens to each candidate**. They are not the final output yet.
-
-### 6. Retrieving and mixing values
-
-The final attention output is:
-
-$$
-O = AV
-$$
-
-The shape is:
-
-$$
-(n \times n)(n \times d_v)=n \times d_v
-$$
-
-For a single query position $i$, this is:
-
-$$
-o_i = \sum_{j=1}^{n}\alpha_{ij}v_j
-$$
-
-So each output is a weighted average of the value vectors. The keys decide relevance; the values supply the retrieved content.
-
-Putting all steps together gives the paper's main equation:
-
-$$
-\operatorname{Attention}(Q,K,V)
-= \operatorname{softmax}\left(\frac{QK^{\top}}{\sqrt{d_k}}\right)V
-$$
-
-### 7. Numerical example with two tokens
-
-To focus on the mechanics, assume the projections have already happened. Consider two query positions and two candidate values:
+Stack the queries, keys, and values into matrices:
 
 $$
 Q =
 \begin{bmatrix}
-1 & 0\\
-0 & 1
+q_{\text{The}}\\
+q_{\text{cat}}\\
+q_{\text{sat}}
 \end{bmatrix},
 \qquad
 K =
 \begin{bmatrix}
-1 & 0\\
-0 & 1
+k_{\text{The}}\\
+k_{\text{cat}}\\
+k_{\text{sat}}
 \end{bmatrix},
 \qquad
 V =
 \begin{bmatrix}
-10 & 0\\
-0 & 20
+v_{\text{The}}\\
+v_{\text{cat}}\\
+v_{\text{sat}}
 \end{bmatrix}
 $$
 
-Here $d_k=2$, so $\sqrt{d_k}=\sqrt{2}\approx 1.414$.
-
-#### Step 1: raw query-key scores
+The complete scaled dot-product attention equation is:
 
 $$
-QK^{\top}
+\operatorname{Attention}(Q,K,V)
 =
-\begin{bmatrix}
-1 & 0\\
-0 & 1
-\end{bmatrix}
-\begin{bmatrix}
-1 & 0\\
-0 & 1
-\end{bmatrix}^{\top}
-=
-\begin{bmatrix}
-1 & 0\\
-0 & 1
-\end{bmatrix}
+\operatorname{softmax}
+\left(
+\frac{QK^\top}{\sqrt{d_k}}
+\right)V
 $$
 
-The first query matches key 1 with score $1$ and key 2 with score $0$. The second query has the opposite preference.
+The steps are:
 
-#### Step 2: scale the scores
+1. $QK^\top$ calculates every query-key compatibility score.
+2. Division by $\sqrt{d_k}$ stabilizes the score magnitudes.
+3. Row-wise softmax converts each query's scores into weights.
+4. Multiplication by $V$ creates weighted combinations of value vectors.
 
-$$
-Z = \frac{QK^{\top}}{\sqrt{2}}
-\approx
-\begin{bmatrix}
-0.707 & 0\\
-0 & 0.707
-\end{bmatrix}
-$$
-
-#### Step 3: apply row-wise softmax
-
-For the first row:
+For one head, if there are $L$ tokens and the query/key vectors have width $d_k$:
 
 $$
-\operatorname{softmax}([0.707,0])
-= \left[
-\frac{\exp(0.707)}{\exp(0.707)+\exp(0)},
-\frac{\exp(0)}{\exp(0.707)+\exp(0)}
-\right]
-\approx [0.670,0.330]
+Q \in \mathbb{R}^{L \times d_k},
+\qquad
+K \in \mathbb{R}^{L \times d_k},
+\qquad
+V \in \mathbb{R}^{L \times d_v}
 $$
 
-For the second row, the weights are reversed:
+Therefore:
 
 $$
-A \approx
-\begin{bmatrix}
-0.670 & 0.330\\
-0.330 & 0.670
-\end{bmatrix}
+QK^\top:
+(L \times d_k)(d_k \times L)
+= L \times L
 $$
 
-#### Step 4: mix the value vectors
+The resulting matrix has one row per querying token and one column per candidate token. The `sat` row tells us how much `sat` should consider `The`, `cat`, and `sat`.
+
+Notice what changes each dimension:
+
+- Increasing the number of input tokens changes $L$ and makes the attention matrix larger: $L \times L$.
+- Changing the model's per-head width changes $d_k$ and the amount of computation inside each dot product.
+- The scaling denominator is $\sqrt{d_k}$, **not** $\sqrt{L}$.
+
+For a batch of multi-head attention, a common layout is:
 
 $$
-O=AV
-\approx
-\begin{bmatrix}
-0.670 & 0.330\\
-0.330 & 0.670
-\end{bmatrix}
-\begin{bmatrix}
-10 & 0\\
-0 & 20
-\end{bmatrix}
-=
-\begin{bmatrix}
-6.70 & 6.60\\
-3.30 & 13.40
-\end{bmatrix}
+Q \in \mathbb{R}^{B \times H \times L \times d_k},
+\qquad
+K \in \mathbb{R}^{B \times H \times L \times d_k},
+\qquad
+V \in \mathbb{R}^{B \times H \times L \times d_v}
 $$
 
-Interpretation:
-
-- Query 1 mostly listens to value 1, so its output is closer to $[10,0]$.
-- Query 2 mostly listens to value 2, so its output is closer to $[0,20]$.
-- Neither output simply copies one value because softmax gives both candidates some weight.
-
-This example is intentionally small and uses already-projected vectors. In a real Transformer, $Q$, $K$, and $V$ are learned projections of token embeddings and the model learns the projections during training.
-
-### 8. Self-attention, cross-attention, and masking
-
-In encoder self-attention, all three inputs come from the same sequence:
+where $B$ is batch size, $H$ is the number of heads, and $L$ is the token count per sequence. The attention scores then have shape:
 
 $$
-Q=XW^Q,\qquad K=XW^K,\qquad V=XW^V
+B \times H \times L \times L
 $$
 
-In decoder self-attention, the same is true, but a causal mask prevents position $i$ from using future positions $j>i$. A mask can be represented as:
+Usually $d_k=d_v=\text{head\_dim}$, but the value width can be different in principle.
 
-$$
-M_{ij}=
-\begin{cases}
-0, & j\le i\\
--\infty, & j>i
-\end{cases}
-$$
+## Why are Q, K, and V separate?
 
-The masked operation is:
+Using separate projections gives the model flexibility:
 
-$$
-A=\operatorname{softmax}_{\mathrm{row}}
-\left(\frac{QK^{\top}}{\sqrt{d_k}}+M\right)
-$$
+- The **query** can encode what a token needs.
+- The **key** can encode how a token should be matched.
+- The **value** can encode what information should be passed onward.
 
-Adding $-\infty$ makes the corresponding softmax probability zero. Thus, all target positions can be computed in parallel during training, while each position still behaves as if it only knew the preceding target tokens.
+If the same vector had to perform all three jobs, matching and information retrieval would be less flexible. Separate learned projections let the model use one representation as a search address and another as the payload.
 
-In encoder-decoder attention, queries come from the decoder and keys and values come from the encoder output $H$:
+## The whole intuition in one paragraph
 
-$$
-Q=YW^Q,\qquad K=HW^K,\qquad V=HW^V
-$$
+Every token searches the sequence for useful information. Its query describes what it needs. Every token's key describes how it can be found. Dot products measure compatibility between the query and each key. Softmax turns those scores into normalized weights. The weights determine how much information to retrieve from each value. The weighted sum becomes a new representation that understands the token in context.
 
-This lets each generated target token retrieve relevant information from the encoded source sentence.
-
-### 9. Multi-head attention
-
-Instead of using one attention operation, the Transformer uses $h$ heads. Each head has its own projections:
-
-$$
-\operatorname{head}_r
-=\operatorname{Attention}
-\left(XW_r^Q,XW_r^K,XW_r^V\right)
-$$
-
-The heads are concatenated and projected:
-
-$$
-\operatorname{MultiHead}(X)
-=\operatorname{Concat}(\operatorname{head}_1,\ldots,\operatorname{head}_h)W^O
-$$
-
-Different heads can learn different relationships, but the interpretation that one head always corresponds to one human concept is only a possible diagnostic pattern, not a guaranteed property.
-
-### 10. What attention does and does not do
-
-- Attention does **not** create information from nowhere; it routes and mixes value representations after learned projections.
-- Attention weights are not fixed word importance scores; they depend on the query, input, layer, head, and masking.
-- Attention alone does not encode order; the Transformer adds positional encodings as described in Section 3.5.
-- Self-attention gives direct pairwise interaction between positions, but its score matrix has $n^2$ entries, so computation and memory grow quadratically with sequence length.
-- The Transformer gains training parallelism because all query-key-value operations for a sequence can be computed as matrix operations, rather than waiting for recurrent time steps.
-
-## Interaction 3 — Attention intuition, derivation, and numerical example
-**Q:** Explain attention in detail with intuition, a small example, and the complete mathematics.
-**A:** Added a source-aware attention deep dive covering query-key-value projections, score and weight computation, $\sqrt{d_k}$ scaling, value aggregation, tensor shapes, a two-token numerical example, causal masking, cross-attention, multi-head attention, and important qualifications. The active concepts remain unchecked because the user has not explicitly confirmed mastery.
+This is the core of one attention head. Multi-head attention repeats this process several times in parallel, allowing different heads to learn different types of relationships.
 
 
-## Interaction 4 — LaTeX rendering cleanup
-**Q:** Fix the LaTeX equation rendering issues in the Attention Is All You Need notes and push the changes.
-**A:** Normalized transpose notation and row-wise softmax labels for broader Markdown math-renderer compatibility. The changes were made only in the authoritative notes file; validation and remote push follow.
+## Interaction 2 — Attention diagnostic quiz
+**Q:** Test understanding of attention concepts and Transformer fundamentals from basic ideas through application-level and complex scenario questions.
+**A:** Prepared an interactive, source-aware diagnostic in progressive rounds, beginning with foundations and reserving tensor-shape, implementation, masking, positional-encoding, and scenario questions for later rounds. No paper facts or workspace metadata were changed.
+
+
+## Interaction 3 — Diagnostic questions workspace
+**Q:** Why were the attention diagnostic questions not added to `questions.md` in the paper workspace?
+**A:** Clarified that `questions.md` had been treated too narrowly as an unresolved-concepts backlog. Added the active Round 1 foundations diagnostic there, preserving the existing questions, and will use the file to track future quiz rounds and response status.
+
+
+## Interaction 4 — Complete diagnostic bank and answer key
+**Q:** Update all attention quiz rounds in `questions.md` and generate answers based on the paper sections and questions.
+**A:** Expanded `questions.md` with six progressive rounds covering foundations, core mechanics, architecture and training, implementation and debugging, application trade-offs, and complex scenarios. Created `answers.md` with answers to the five existing unresolved questions and every question in all six rounds, while distinguishing paper claims from implementation guidance and interpretation. Read back both files and corrected/validated their Markdown LaTeX formatting.
