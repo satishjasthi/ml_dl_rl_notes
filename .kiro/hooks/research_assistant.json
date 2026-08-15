@@ -12,20 +12,20 @@
     },
     {
       "name": "research-assistant-prompt",
-      "description": "Require source-aware work and one concise Q&A note for every user prompt.",
+      "description": "Require source-aware work and one concise Q&A note for substantive paper prompts; allow repository-maintenance PDF exports without a note entry.",
       "trigger": "UserPromptSubmit",
       "action": {
         "type": "agent",
-        "prompt": "After answering this user request, read the active paper workspace and append exactly one concise, chronological Q&A entry to the confirmed primary notes file before finalizing. Preserve existing content. Update paper or knowledge indexes only when relevant or requested, link entries to source paper files, and report write failures honestly. If the paper source or notes path is not confirmed, ask for them first."
+        "prompt": "After answering this user request, if it is substantive paper work, read the active paper workspace and append exactly one concise, chronological Q&A entry to the confirmed primary notes file before finalizing. Preserve existing content. Update paper or knowledge indexes only when relevant or requested, link entries to source paper files, and report write failures honestly. For an explicit PDF generation or synchronization request, run the repository notes_to_pdf.py command, leave notes.md unchanged, and do not append an interaction entry. If the paper source or notes path is not confirmed for paper work, ask for them first."
       }
     },
     {
       "name": "research-assistant-stop",
-      "description": "Check that the completed interaction was captured.",
+      "description": "Check that substantive paper work was captured without requiring entries for PDF-only maintenance.",
       "trigger": "Stop",
       "action": {
         "type": "agent",
-        "prompt": "Before ending this turn, verify that the current interaction was captured in the confirmed primary notes file as one concise Q&A entry. If not, append it now; do not claim it was saved if writing failed."
+        "prompt": "Before ending this turn, if substantive paper work was requested, verify that the interaction was captured in the confirmed primary notes file as one concise Q&A entry. For PDF-only repository maintenance, verify the requested PDF command completed and do not append a note entry. Do not claim a write succeeded if it failed."
       }
     }
   ]

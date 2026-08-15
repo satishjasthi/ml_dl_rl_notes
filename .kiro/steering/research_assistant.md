@@ -31,6 +31,7 @@ Every paper should use the same layout:
 ```text
 papers/<paper-slug>/
 ├── notes.md
+├── notes.pdf          # Optional generated PDF export of notes.md
 ├── concepts.md
 ├── resources.md
 ├── questions.md
@@ -42,6 +43,18 @@ papers/<paper-slug>/
 ```
 
 `notes.md` is the authoritative source for the paper and contains metadata, paper-at-a-glance, problem, contributions, method, equations, experiments, results, limitations, current understanding, and the interaction log. Companion files hold focused information and should link back to `notes.md`.
+
+## Manual PDF exports
+
+PDF export is explicit and manual. It never changes `notes.md` and does not create an interaction-log entry because it is a repository-maintenance action. From the repository root:
+
+```bash
+python3 scripts/notes_to_pdf.py generate papers/<paper-slug>/notes.md
+python3 scripts/notes_to_pdf.py sync papers/<paper-slug>/notes.md
+python3 scripts/notes_to_pdf.py check papers/<paper-slug>/notes.md
+```
+
+The default output is the sibling `notes.pdf`; pass `--output <path>` to choose another file. Use `sync` whenever notes change. `check` compares the source SHA-256 embedded in the PDF and exits nonzero with `STALE` when regeneration is needed. The exporter uses only Python's standard library, renders the Markdown notes into a readable PDF, and leaves `notes.md` untouched. Generated PDFs are optional artifacts and may be committed if desired.
 
 Suggested paper metadata:
 
