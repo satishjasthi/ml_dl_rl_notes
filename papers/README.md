@@ -5,6 +5,7 @@ Create one directory per paper using a stable lowercase slug:
 ```text
 papers/<paper-slug>/
 ├── notes.md
+├── notes.pdf          # Optional generated PDF export of notes.md
 ├── concepts.md
 ├── resources.md
 ├── questions.md
@@ -16,3 +17,5 @@ papers/<paper-slug>/
 ```
 
 `notes.md` is the authoritative paper record and contains the interaction log. Companion files should link back to the paper notes. The `research_assistant` agent creates or updates these files when a paper is studied.
+
+For a readable export, use the repository-level `scripts/notes_to_pdf.py` command documented in the root [README](../README.md). PDF generation and synchronization are manual maintenance actions and do not modify `notes.md`.

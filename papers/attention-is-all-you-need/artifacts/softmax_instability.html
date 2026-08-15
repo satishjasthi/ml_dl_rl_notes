@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Softmax Stability — q·k and √dₖ</title>
+<style>
+  :root {
+    --ink: #182230;
+    --muted: #667085;
+    --paper: #f6f8fb;
+    --card: #fff;
+    --line: #dbe2ea;
+    --blue: #2f6fed;
+    --blue-soft: #e9f0ff;
+    --orange: #e77732;
+    --orange-soft: #fff0e8;
+    --green: #14866d;
+    --green-soft: #e6f6f1;
+    --purple: #7957c9;
+    --shadow: 0 12px 30px rgba(28, 45, 74, .08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    background: radial-gradient(circle at 90% 0, #e9efff 0, transparent 32rem), var(--paper);
+    font: 15px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 34px 22px 55px; }
+  h1, h2, h3, p { margin-top: 0; }
+  h1 { max-width: 800px; margin-bottom: 12px; font-size: clamp(2rem, 4vw, 3.35rem); line-height: 1.03; letter-spacing: -.055em; }
+  h2 { font-size: 1.17rem; letter-spacing: -.02em; margin-bottom: 7px; }
+  h3 { font-size: .98rem; margin-bottom: 7px; }
+  .eyebrow { color: var(--blue); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; font-size: .72rem; margin-bottom: 12px; }
+  .lead { max-width: 850px; color: #465467; font-size: 1.06rem; }
+  .formula { display: inline-block; padding: 10px 15px; border: 1px solid #cdd9f2; border-radius: 12px; background: rgba(255,255,255,.72); color: #244891; font: 1rem ui-monospace, SFMono-Regular, Menlo, monospace; margin: 4px 0 23px; }
+  .grid { display: grid; gap: 18px; }
+  .top-grid { grid-template-columns: minmax(260px, .75fr) minmax(0, 1.25fr); align-items: stretch; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 20px; }
+  .control-card { border-top: 4px solid var(--blue); }
+  .control-row { margin-bottom: 19px; }
+  .control-row:last-of-type { margin-bottom: 14px; }
+  label { display: flex; justify-content: space-between; gap: 10px; color: #344054; font-weight: 700; margin-bottom: 7px; }
+  output { color: var(--blue); font: 800 .9rem ui-monospace, monospace; }
+  input[type=range] { display: block; width: 100%; accent-color: var(--blue); cursor: pointer; }
+  .hint { color: var(--muted); font-size: .82rem; margin: 5px 0 0; }
+  button { border: 0; border-radius: 10px; padding: 10px 14px; background: var(--blue); color: #fff; font-weight: 800; cursor: pointer; transition: transform .15s, filter .15s; }
+  button:hover { filter: brightness(.94); transform: translateY(-1px); }
+  .button-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .seed { color: var(--muted); font: .78rem ui-monospace, monospace; }
+  .equation-card { display: grid; gap: 13px; align-content: center; }
+  .step { display: grid; grid-template-columns: 31px 1fr; gap: 11px; align-items: start; }
+  .step-no { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: var(--blue); font-weight: 900; }
+  .step:nth-child(2) .step-no { background: var(--green); }
+  .step p { color: #536174; margin: 0; font-size: .9rem; }
+  .equation { margin: 8px 0 0; padding: 11px 13px; background: #f7f9fb; border: 1px solid #e7ecf2; border-radius: 10px; color: #26384d; font: .84rem/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+  .equation strong { color: var(--blue); }
+  .section-title { margin: 28px 0 12px; display: flex; justify-content: space-between; gap: 18px; align-items: baseline; }
+  .section-title p { color: var(--muted); margin: 0; font-size: .84rem; }
+  .callout { border-radius: 12px; padding: 12px 14px; font-size: .88rem; margin-top: 13px; }
+  .callout.blue { background: var(--blue-soft); color: #294c98; }
+  .callout.orange { background: var(--orange-soft); color: #8b431d; }
+  .callout.green { background: var(--green-soft); color: #176d5b; }
+  .sweep-card { border-top: 4px solid var(--purple); }
+  .sweep-head { display: flex; justify-content: space-between; gap: 18px; align-items: center; margin-bottom: 8px; }
+  .sweep-head p { color: var(--muted); margin: 0; font-size: .86rem; }
+  .sweep-head button { background: var(--purple); white-space: nowrap; }
+  .chart-wrap { width: 100%; overflow: hidden; }
+  svg { display: block; width: 100%; height: auto; }
+  .axis-label { fill: #748196; font-size: 11px; }
+  .gridline { stroke: #e7ecf2; stroke-width: 1; }
+  .sweep-raw { fill: none; stroke: var(--orange); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+  .sweep-scaled { fill: none; stroke: var(--green); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+  .sweep-dot-raw { fill: var(--orange); stroke: #fff; stroke-width: 2; }
+  .sweep-dot-scaled { fill: var(--green); stroke: #fff; stroke-width: 2; }
+  .legend { display: flex; gap: 15px; flex-wrap: wrap; color: var(--muted); font-size: .82rem; margin-top: 10px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .dot.raw { background: var(--orange); }
+  .dot.scaled { background: var(--green); }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: #f0f3f7; padding: 2px 5px; border-radius: 5px; }
+  .footnote { color: var(--muted); font-size: .8rem; margin-top: 19px; }
+  @media (max-width: 850px) {
+    .top-grid { grid-template-columns: 1fr; }
+    .section-title { display: block; }
+    .section-title p { margin-top: 4px; }
+  }
+  @media (max-width: 600px) {
+    .sweep-head { display: block; }
+    .sweep-head button { margin-top: 12px; }
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="eyebrow">Interactive numerical intuition</div>
+  <h1>Why does attention divide by √dₖ?</h1>
+  <p class="lead">Follow one attention score from a query and a key, turn the scores into probabilities, then watch what changes as the key dimension grows.</p>
+  <div class="formula">attention(Q,K,V) = softmax(QKᵀ / √dₖ)V</div>
+
+  <section class="grid top-grid" aria-label="Controls and equation walkthrough">
+    <div class="card control-card">
+      <h2>Try the knobs</h2>
+      <p class="hint" style="margin-bottom:18px">The example uses one query and several candidate keys. Reroll to see another set of values.</p>
+      <div class="control-row">
+        <label for="dk">Key/query dimension, dₖ <output id="dkOut">64</output></label>
+        <input id="dk" type="range" min="1" max="1024" value="64" step="1">
+        <p class="hint">This is the length of each q and k vector for one head.</p>
+      </div>
+      <div class="control-row">
+        <label for="count">Candidate keys <output id="countOut">6</output></label>
+        <input id="count" type="range" min="3" max="12" value="6" step="1">
+        <p class="hint">Each candidate receives one attention probability.</p>
+      </div>
+      <div class="control-row">
+        <label for="multiplier">Score magnitude <output id="multiplierOut">2.0×</output></label>
+        <input id="multiplier" type="range" min="0.25" max="12" value="2" step="0.25">
+        <p class="hint">Increase this to make extreme softmax behavior easier to see.</p>
+      </div>
+      <div class="button-row">
+        <button id="reroll" type="button">↻ Reroll q and k</button>
+        <span class="seed">seed: <span id="seedOut">—</span></span>
+      </div>
+    </div>
+
+    <div class="card equation-card">
+      <div class="step">
+        <span class="step-no">1</span>
+        <div>
+          <h3>Build scores from q and k</h3>
+          <p>Compare one query with every key using a dot product. Each score is a logit.</p>
+          <div class="equation" id="dotEquation"></div>
+          <div class="equation" id="softmaxEquation"></div>
+        </div>
+      </div>
+      <div class="step">
+        <span class="step-no">2</span>
+        <div>
+          <h3>Then scale before softmax</h3>
+          <p>Use the same logits, divided by the square root of their vector dimension.</p>
+          <div class="equation" id="scaleEquation"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-title"><h2>3. Play the dₖ sweep</h2><p>One plot: maximum attention probability as dimension increases.</p></div>
+  <section class="card sweep-card" aria-label="Animated d_k sweep">
+    <div class="sweep-head">
+      <div>
+        <h2>Unscaled versus divided by √dₖ</h2>
+        <p>The orange path uses <code>softmax(q·k)</code>; the green path uses <code>softmax(q·k / √dₖ)</code>.</p>
+      </div>
+      <button id="sweepButton" type="button">▶ Play dₖ sweep</button>
+    </div>
+    <div class="chart-wrap" id="sweepChart"></div>
+    <div class="legend"><span><i class="dot raw"></i> no √dₖ scaling: saturates toward one winner</span><span><i class="dot scaled"></i> with √dₖ scaling: keeps alternatives alive</span></div>
+    <div id="sweepStatus" class="callout blue">Press play to increase dₖ from 1 to 1024. Both curves use stable exponentiation so the plot isolates the sharpness problem.</div>
+  </section>
+
+  <div class="callout orange"><strong>What “unstable” means here:</strong> as dₖ grows, unscaled dot products become larger. Softmax magnifies their differences until one key gets almost all the probability. At sufficiently extreme values, a naïve <code>exp(score)</code> can also overflow. Dividing by √dₖ controls the score scale; subtracting the maximum logit makes the exponential calculation numerically safe.</div>
+  <p class="footnote">The plot uses max-shifted softmax for both curves to separate two ideas: √dₖ prevents attention from becoming too sharp, while max subtraction prevents floating-point overflow.</p>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  let seed = Math.floor(Math.random() * 0xffffffff);
+  let query = [];
+  let keys = [];
+  let baseScores = [];
+  let sweepFrame = null;
+  let sweepSamples = [];
+
+  const settings = () => ({
+    dk: Number($('dk').value),
+    count: Number($('count').value),
+    multiplier: Number($('multiplier').value)
+  });
+  function rng() {
+    seed = (1664525 * seed + 1013904223) >>> 0;
+    return seed / 4294967296;
+  }
+  function normal() {
+    let u = 0, v = 0;
+    while (u === 0) u = rng();
+    while (v === 0) v = rng();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+  function fmt(value, digits = 2) {
+    if (Number.isNaN(value)) return 'NaN';
+    if (!Number.isFinite(value)) return '∞';
+    if (Math.abs(value) >= 1000 || (Math.abs(value) > 0 && Math.abs(value) < .01)) return value.toExponential(2);
+    return value.toFixed(digits);
+  }
+  function pct(value) { return Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : 'invalid'; }
+  function stableSoftmax(values) {
+    const max = Math.max(...values);
+    const exps = values.map(value => Math.exp(value - max));
+    const total = exps.reduce((sum, value) => sum + value, 0);
+    return exps.map(value => value / total);
+  }
+  function shortVector(values) {
+    const shown = values.slice(0, 3).map(value => fmt(value));
+    return values.length > 3 ? `[${shown.join(', ')}, …]` : `[${shown.join(', ')}]`;
+  }
+  function valuesText(values) { return `[${values.map(value => fmt(value)).join(', ')}]`; }
+
+  function reroll() {
+    const s = settings();
+    query = Array.from({length: s.dk}, normal);
+    keys = [];
+    baseScores = [];
+    for (let i = 0; i < s.count; i++) {
+      const key = Array.from({length: s.dk}, normal);
+      keys.push(key);
+      baseScores.push(query.reduce((sum, value, j) => sum + value * key[j], 0));
+    }
+    seed = seed >>> 0;
+    $('seedOut').textContent = String(seed);
+    resetSweep();
+    renderEquations();
+  }
+  function renderEquations() {
+    const s = settings();
+    const raw = baseScores.map(score => score * s.multiplier);
+    const scaled = raw.map(score => score / Math.sqrt(s.dk));
+    const rawProb = stableSoftmax(raw);
+    const scaledProb = stableSoftmax(scaled);
+    $('dkOut').textContent = s.dk;
+    $('countOut').textContent = s.count;
+    $('multiplierOut').textContent = `${s.multiplier.toFixed(2)}×`;
+    $('dotEquation').innerHTML = `<strong>q</strong> = ${shortVector(query)}<br><strong>k₁…kₙ</strong> = ${keys.map(shortVector).join(', ')}<br><strong>sᵢ = q·kᵢ</strong> = ${valuesText(raw)}`;
+    $('softmaxEquation').innerHTML = `<strong>pᵢ = softmax(sᵢ)</strong> = exp(sᵢ) / Σⱼ exp(sⱼ)<br>raw probabilities = ${valuesText(rawProb)}`;
+    $('scaleEquation').innerHTML = `<strong>sᵢ′ = (q·kᵢ) / √dₖ</strong> = ${valuesText(scaled)}<br><strong>pᵢ′ = softmax(sᵢ′)</strong> = ${valuesText(scaledProb)}<br>here √dₖ = √${s.dk} = ${fmt(Math.sqrt(s.dk))}`;
+  }
+  function drawSweep(points) {
+    const w = 900, h = 280, pad = {l: 52, r: 24, t: 24, b: 45};
+    const x = dk => pad.l + ((dk - 1) / 1023) * (w - pad.l - pad.r);
+    const y = probability => pad.t + (1 - probability) * (h - pad.t - pad.b);
+    const grid = [0, .5, 1].map(value => `<line class="gridline" x1="${pad.l}" y1="${y(value)}" x2="${w-pad.r}" y2="${y(value)}"/><text class="axis-label" x="8" y="${y(value)+4}">${Math.round(value * 100)}%</text>`).join('');
+    const axes = `<text class="axis-label" x="${pad.l}" y="14">maximum probability</text><text class="axis-label" text-anchor="middle" x="${(pad.l+w-pad.r)/2}" y="${h-6}">dₖ (dimension)</text><text class="axis-label" x="${x(1)}" y="${h-22}">1</text><text class="axis-label" text-anchor="end" x="${x(1024)}" y="${h-22}">1024</text>`;
+    const rawPath = points.map((point, i) => `${i ? 'L' : 'M'} ${x(point.dk).toFixed(2)} ${y(point.rawMax).toFixed(2)}`).join(' ');
+    const scaledPath = points.map((point, i) => `${i ? 'L' : 'M'} ${x(point.dk).toFixed(2)} ${y(point.scaledMax).toFixed(2)}`).join(' ');
+    const latest = points[points.length - 1];
+    const markers = latest ? `<circle class="sweep-dot-raw" cx="${x(latest.dk)}" cy="${y(latest.rawMax)}" r="5"/><circle class="sweep-dot-scaled" cx="${x(latest.dk)}" cy="${y(latest.scaledMax)}" r="5"/>` : '';
+    const empty = points.length ? '' : '<text class="axis-label" text-anchor="middle" x="475" y="145">Press play to watch the curves separate</text>';
+    $('sweepChart').innerHTML = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Unscaled and scaled maximum softmax probability as d_k increases">${grid}${axes}<path class="sweep-raw" d="${rawPath}"/><path class="sweep-scaled" d="${scaledPath}"/>${markers}${empty}</svg>`;
+  }
+  function buildSweep() {
+    const s = settings();
+    const maxDk = 1024;
+    const q = Array.from({length: maxDk}, normal);
+    const running = Array(s.count).fill(0);
+    const points = [];
+    for (let dk = 1; dk <= maxDk; dk++) {
+      for (let i = 0; i < s.count; i++) running[i] += q[dk - 1] * normal();
+      const raw = running.map(score => score * s.multiplier);
+      const scaled = raw.map(score => score / Math.sqrt(dk));
+      points.push({dk, rawMax: Math.max(...stableSoftmax(raw)), scaledMax: Math.max(...stableSoftmax(scaled))});
+    }
+    return points;
+  }
+  function resetSweep() {
+    if (sweepFrame !== null) cancelAnimationFrame(sweepFrame);
+    sweepFrame = null;
+    sweepSamples = [];
+    $('sweepButton').textContent = '▶ Play dₖ sweep';
+    $('sweepStatus').innerHTML = 'Press play to increase dₖ from 1 to 1024. Both curves use stable exponentiation so the plot isolates the sharpness problem.';
+    drawSweep([]);
+  }
+  function playSweep() {
+    resetSweep();
+    sweepSamples = buildSweep();
+    $('sweepButton').textContent = 'Playing…';
+    const started = performance.now();
+    const duration = 4200;
+    function step(now) {
+      const progress = Math.min(1, (now - started) / duration);
+      const index = Math.min(sweepSamples.length - 1, Math.floor(progress * (sweepSamples.length - 1)));
+      const visible = sweepSamples.slice(0, index + 1);
+      const point = sweepSamples[index];
+      drawSweep(visible);
+      $('sweepStatus').innerHTML = `<strong>dₖ = ${point.dk}:</strong> no scaling ${pct(point.rawMax)} · divide by √dₖ ${pct(point.scaledMax)}`;
+      if (progress < 1) sweepFrame = requestAnimationFrame(step);
+      else {
+        sweepFrame = null;
+        $('sweepButton').textContent = '↻ Play again';
+        $('sweepStatus').innerHTML += ' — the orange path is close to one winner; the green path remains less saturated.';
+      }
+    }
+    sweepFrame = requestAnimationFrame(step);
+  }
+
+  $('dk').addEventListener('input', reroll);
+  $('count').addEventListener('input', reroll);
+  $('multiplier').addEventListener('input', renderEquations);
+  $('reroll').addEventListener('click', reroll);
+  $('sweepButton').addEventListener('click', playSweep);
+  reroll();
+})();
+</script>
+</body>
+</html>
