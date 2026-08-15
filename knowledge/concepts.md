@@ -28,3 +28,9 @@
 - **Self-attention** — let each token build a context-aware representation by attending to positions in the same sequence. Source: [Attention Is All You Need notes](../papers/attention-is-all-you-need/notes.md).
 - **Positional encoding** — add sequence-order information because attention alone does not inherently represent token positions. Source: [Attention Is All You Need notes](../papers/attention-is-all-you-need/notes.md).
 - **Causal decoder masking** — prevent a target position from using future target tokens during Transformer training. Source: [Attention Is All You Need notes](../papers/attention-is-all-you-need/notes.md).
+
+- **Patch tokenization** — represent an image as a sequence of non-overlapping patch tokens; source [ViT notes](../papers/vit_paper/notes.md).
+- **Class-token readout** — use a learned non-spatial token to aggregate image information for classification; source [ViT notes](../papers/vit_paper/notes.md).
+- **Vision Transformer data hunger** — weaker visual inductive bias can require large-scale pretraining; source [ViT notes](../papers/vit_paper/notes.md).
+- **Patch-size/sequence-length trade-off** — smaller patches improve spatial granularity while increasing attention cost; source [ViT notes](../papers/vit_paper/notes.md).
+- **Position-embedding interpolation** — adapt learned spatial embeddings to changed patch grids during transfer; source [ViT notes](../papers/vit_paper/notes.md).

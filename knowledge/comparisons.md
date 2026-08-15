@@ -53,3 +53,23 @@
 | Source | [DINOv1 notes](../papers/dino-v1/notes.md) | [DINOv2 notes](../papers/dino_v2/notes.md) |
 
 **Bottom line:** DINOv2 is best understood as a scaled and strengthened DINO family recipe, not a replacement of the original teacher-student intuition.
+
+## ViT as the visual extension of the Transformer
+
+| Dimension | [Attention Is All You Need](../papers/attention-is-all-you-need/notes.md) | [ViT](../papers/vit_paper/notes.md) |
+| --- | --- | --- |
+| Input tokens | Text/subword sequence | Flattened image patches plus a class token |
+| Positional information | Sequence positional encodings | Learned patch-grid position embeddings |
+| Core encoder | Self-attention and feed-forward blocks | Same standard Transformer encoder pattern |
+| Task readout | Decoder or sequence outputs for translation | Final class-token representation for classification |
+| Key challenge | Preserve order while modeling long-range language context | Learn visual structure that CNNs often provide as inductive bias |
+| Scaling lesson | Parallel attention replaces recurrent processing | Large-scale pretraining makes a low-bias visual Transformer effective |
+
+## ViT backbone versus later self-supervised ViT methods
+
+| Dimension | [ViT](../papers/vit_paper/notes.md) | [MAE](../papers/masked_auto_encoders/notes.md) | [DINO](../papers/dino-v1/notes.md) |
+| --- | --- | --- | --- |
+| Backbone role | Supervised/pretrained image classifier | Encoder for masked image reconstruction pretraining | Student/teacher backbone for self-distillation |
+| Learning signal | Labels in the paper's transfer setup | Reconstruct missing patches | Match EMA-teacher representations across crops |
+| Shared foundation | Patch tokens, positional information, Transformer encoder | Builds on ViT-style patch processing | Builds on ViT-style patch processing |
+| Main additional idea | Replace convolutional visual processing with global token attention | Learn from sparse visible context | Learn semantic invariance without labels or explicit negatives |

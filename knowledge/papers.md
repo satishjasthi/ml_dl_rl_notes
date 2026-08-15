@@ -33,3 +33,8 @@
   - Authors: Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez, Łukasz Kaiser, Illia Polosukhin
   - Topics: attention, Transformer, sequence transduction, neural machine translation
   - Source: https://arxiv.org/abs/1706.03762
+
+- [ViT — An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale](../papers/vit_paper/notes.md)
+  - Authors: Alexey Dosovitskiy et al.
+  - Topics: Vision Transformer, image patches, self-attention, transfer learning, scaling
+  - Source: https://arxiv.org/abs/2010.11929

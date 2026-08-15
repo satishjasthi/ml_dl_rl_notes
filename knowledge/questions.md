@@ -14,3 +14,7 @@
 
 - Which DINOv2 components account for improvements under matched compute: data curation, iBOT patch prediction, KoLeo regularization, architecture, or training schedules? Raised by [DINOv2 questions](../papers/dino_v2/questions.md).
 - How do DINOv2 semantic patch targets compare with MAE pixel reconstruction and DINOv1 global-only self-distillation? Raised by [DINOv2 questions](../papers/dino_v2/questions.md).
+
+- How much of ViT's advantage under matched compute comes from global attention, token count, model parameters, or pretraining data? Raised by [ViT questions](../papers/vit_paper/questions.md).
+- When should a CNN, pure ViT, hybrid, hierarchical, or local-attention model be preferred for small-data and high-resolution tasks? Raised by [ViT questions](../papers/vit_paper/questions.md).
+- How reliable are class-token attention maps as explanations, and which perturbation or attribution tests establish faithfulness? Raised by [ViT questions](../papers/vit_paper/questions.md).

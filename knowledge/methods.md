@@ -15,3 +15,7 @@
 - **Global-plus-patch distillation** — use global crop-level targets and masked patch-level targets to preserve both semantic and spatial information. Source: [DINOv2 notes](../papers/dino_v2/notes.md).
 
 - **Transformer encoder-decoder** — sequence-transduction architecture based on self-attention, encoder-decoder attention, positional encodings, feed-forward layers, residual connections, and normalization, without recurrence or convolution. Source: [Attention Is All You Need notes](../papers/attention-is-all-you-need/notes.md).
+
+- **Vision Transformer patch-token classifier** — split an image into flattened patches, project them to Transformer tokens, prepend a class token, add positional embeddings, and classify from the encoded class token. Source: [ViT notes](../papers/vit_paper/notes.md).
+- **Position-embedding interpolation for resolution transfer** — reshape learned spatial position embeddings to a 2-D grid and interpolate them when the downstream patch grid changes. Source: [ViT notes](../papers/vit_paper/notes.md).
+- **Pure Transformer vision scaling** — trade CNN inductive bias for a uniform token-and-attention architecture whose effectiveness depends strongly on pretraining scale. Source: [ViT notes](../papers/vit_paper/notes.md).

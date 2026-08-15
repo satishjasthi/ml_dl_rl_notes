@@ -14,3 +14,7 @@
 
 - [DINOv2 paper](https://arxiv.org/abs/2304.07193) — primary source; indexed in [DINOv2 notes](../papers/dino_v2/notes.md).
 - [Official DINOv2 implementation](https://github.com/facebookresearch/dinov2) — author implementation and pretrained resources; recorded in [DINOv2 resources](../papers/dino_v2/resources.md).
+
+- [ViT paper](https://arxiv.org/abs/2010.11929) — primary source; indexed in [ViT notes](../papers/vit_paper/notes.md).
+- [ViT HTML paper](https://arxiv.org/html/2010.11929v2) — readable primary source for sections and equations; indexed in [ViT resources](../papers/vit_paper/resources.md).
+- [ViT toy prototype](../papers/vit_paper/prototypes/toy_vit/README.md) — independent educational implementation linked from [ViT notes](../papers/vit_paper/notes.md).
